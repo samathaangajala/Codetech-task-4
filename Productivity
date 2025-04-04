@@ -1,0 +1,65 @@
+ytics-extension/
+├── background.js
+├── content.js
+├── manifest.json
+├── popup.html
+├── popup.js
+├── styles.css{
+  "manifest_version": 3,
+  "name": "YTICS - Time Tracker",
+  "version": "1.0",
+  "description": "Track and analyze your web usage for productivity.",
+  "permissions": ["tabs", "storage"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ]
+}chrome.runtime.sendMessage({ url: window.location.hostname });let activeTab = '';
+let startTime = Date.now();
+
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.url !== activeTab) {
+    const endTime = Date.now();
+    if (activeTab) {
+      logTime(activeTab, endTime - startTime);
+    }
+    activeTab = message.url;
+    startTime = endTime;
+  }
+});
+
+function logTime(url, duration) {
+  chrome.storage.local.get([url], (result) => {
+    const total = result[url] || 0;
+    chrome.storage.local.set({ [url]: total + duration });
+  });
+}chrome.storage.local.get(null, (data) => {
+  const reportDiv = document.getElementById('report');
+  for (const site in data) {
+    const seconds = Math.round(data[site] / 1000);
+    const item = document.createElement('div');
+    item.textContent = `${site}: ${seconds} seconds`;
+    reportDiv.appendChild(item);
+  }
+});body {
+  font-family: Arial, sans-serif;
+  padding: 10px;
+}
+
+h1 {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+#report div {
+  margin-bottom: 5px;
+}
